@@ -1,6 +1,8 @@
 <!-- Masked Face Emotion Detection -->
 <!-- CS 541: Artificial Intelligence - Final Group Project -->
-
+<h2 align="center">Masked Face Emotion Detection</h2>
+<h3 align="center">CS 541: Artificial Intelligence - Final Group Project</h3>
+  
 <!-- TABLE OF CONTENTS -->
 <details open="open">
   <summary><h2 style="display: inline-block">Table of Contents</h2></summary>
