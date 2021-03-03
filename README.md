@@ -70,6 +70,24 @@ Necessary software downloads
    git clone https://github.com/VinodhKotipalli/masked_face_emotion_detection.git
    ```
 2. Install required packages
-   ```sh
-   ...
-   ```
+  * Install poetry for python virtual environment (skip if already installed)
+    ```sh
+    curl -SSL https://raw.githubusercontent.com/sdispater/poetry/master/get-poetry.py | python
+    ```
+  * configure poetry to create virtual environment in project path
+    ```sh
+    poetry config virtualenvs.in-project true
+    ```
+  * Install dependencies and create python virtual environment(.venv will have virtual python environment)
+    ```sh
+    cd maskedFaceEmotionDetection
+    poetry install
+    ```
+  * To use the already created python virtual environment 
+    ```sh
+    poetry env use python
+    ```
+  
+  
+
+  
