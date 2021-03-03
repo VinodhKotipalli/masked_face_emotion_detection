@@ -78,16 +78,27 @@ Necessary software downloads
     ```sh
     poetry config virtualenvs.in-project true
     ```
-  * Install dependencies and create python virtual environment(.venv will have virtual python environment)
+  * Install dependencies and create python virtual environment(maskedFaceEmotionDetection/.venv will have virtual python environment)
     ```sh
     cd maskedFaceEmotionDetection
+
     poetry install
     ```
   * To use the already created python virtual environment 
     ```sh
     poetry env use python
     ```
-  
+    * To run the python code 
+    ```sh
+    poetry run python <filename>.py
+    ```
+    * To add/remove more python packages to virtual environment 
+    ```sh
+    poetry add <package-name>
+
+    poetry remove <package-name>
+    ```  
+      Note: Additional resources for poetry https://python-poetry.org/docs/  
   
 
   
