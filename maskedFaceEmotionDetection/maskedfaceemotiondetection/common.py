@@ -3,6 +3,9 @@ import copy
 from PIL import Image
 from collections.abc import Iterable 
 
+import pandas as pd
+from sklearn.preprocessing import MinMaxScaler
+
 
 projdir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if ':' in projdir:
@@ -71,6 +74,33 @@ def imagesToLabeledCSV(dirpaths,csvpath,skipTag=None,selectTag=None):
                     csvfile.write(labeledData_row + '\n')
 
     csvfile.close()
+def csvToDataframe(fpath,labelHeader="label",labelIndex=-1):
+    f = open(fpath, 'r')
+    c = 0
+    for row in f:
+        c = len(row.split(","))
+        break
+    f.close()
+    
+    if labelIndex < 0:
+        labelIndex = c + labelIndex
+    if labelIndex >= c:
+        labelIndex = c -1
+    if labelIndex <= 0:
+        labelIndex = 0
+    columns = list()
+    for i in range(c):
+        if i !=  labelIndex:
+            columns.append("X" + str(i))
+        else:
+            columns.append(labelHeader)
+    df = pd.read_csv(fpath,names=columns)
+    return df
+
+def scaledDataFrame(df):
+    scaler = MinMaxScaler()
+    df_scaled = pd.DataFrame(scaler.fit_transform(df),columns = df.columns)
+    return df_scaled
 
 if __name__ == '__main__':
     dirpath = projdir + "/data/train"
