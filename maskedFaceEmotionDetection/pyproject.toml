@@ -1,0 +1,20 @@
+[tool.poetry]
+name = "maskedFaceEmotionDetection"
+version = "0.1.0"
+description = ""
+authors = ["VinodhKotipalli <50426917+VinodhKotipalli@users.noreply.github.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+numpy = "^1.20.1"
+Pillow = "^8.1.1"
+matplotlib = "^3.3.4"
+pandas = "^1.2.3"
+sklearn = "^0.0"
+
+[tool.poetry.dev-dependencies]
+pytest = "^5.2"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
