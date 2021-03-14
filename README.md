@@ -58,6 +58,7 @@ We will be comparing the accuracy of a machine learning model trained on a datas
   * labels_ibug_300W_masked_*.xmls
   * See resulting data files from training, mask-data*.dat
 * Analysis of photos from source files where face detection not possible: RetrainiBUG300-W/face_detection_stats.xslx
+* Tutorials used for training shape detection and try cnn mode: https://github.com/davisking/dlib/blob/master/python_examples/cnn_face_detector.py and https://www.pyimagesearch.com/2019/12/16/training-a-custom-dlib-shape-predictor/
 
 
 <!-- GETTING STARTED -->
