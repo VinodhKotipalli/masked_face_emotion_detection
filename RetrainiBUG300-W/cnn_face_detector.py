@@ -1,5 +1,5 @@
 #!/usr/bin/python
-# from python examples in dlib git hub 
+# from python examples in dlib git hub : https://github.com/davisking/dlib/blob/master/python_examples/cnn_face_detector.py
 # The contents of this file are in the public domain. See LICENSE_FOR_EXAMPLE_PROGRAMS.txt
 #
 #   This example shows how to run a CNN based face detector using dlib.  The
