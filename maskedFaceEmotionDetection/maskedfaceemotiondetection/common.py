@@ -2,16 +2,16 @@ import os
 import copy
 from PIL import Image
 from collections.abc import Iterable 
+import torch
+import numpy as np
 
 import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
-
+import sys
 
 projdir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if ':' in projdir:
     projdir = projdir.split(':')[1].replace('\\', '/')
-
-
 
 
 class Emotion:
@@ -122,5 +122,3 @@ if __name__ == '__main__':
     imagesToLabeledCSV(dirpaths,csvpath,"surgical",None)
     csvpath = projdir + "/datasets/facesWithMasks.csv"
     imagesToLabeledCSV(dirpaths,csvpath,None,"surgical")
-
-
