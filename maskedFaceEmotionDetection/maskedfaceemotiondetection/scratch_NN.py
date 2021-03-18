@@ -163,7 +163,7 @@ def test(test_data, weights, weights_hidden):
 
 if __name__ == '__main__':
     # find directory to csv files of images
-    proj_file = os.path.dirname(os.path.abspath(__file__))
+    proj_file = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     csv_dir = os.path.join(proj_file, "datasets")
     testData = []
     trainData = []
