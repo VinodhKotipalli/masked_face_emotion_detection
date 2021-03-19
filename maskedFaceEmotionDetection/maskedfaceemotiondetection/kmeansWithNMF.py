@@ -9,6 +9,9 @@ import statistics
 import sys
 import multiprocessing
 
+from sklearn.decomposition import NMF
+
+
 PLUSINF = sys.float_info.max
 MINUSINF = sys.float_info.min
 np.set_printoptions(precision=3)
@@ -22,15 +25,15 @@ class InitAlgorithm:
 initAlgorithms = [InitAlgorithm.RANDOM,InitAlgorithm.KPLUS,InitAlgorithm.MAXSEPERATION,InitAlgorithm.MINGROUPING]
 
 initAlgorithmNames = ["Random","KMeans++","MaxSeperation","MinGrouping"]
-plotColors = ['b','r','g','k']
 
-class KMeansClassifier:
-    def __init__(self,trainingInputs,trainingTargets,clusters,initAlgorithm=None,maxSample=5000):
+class KMeansClassifierWithNMF:
+    def __init__(self,trainingInputs,trainingTargets,clusters,components=7,initAlgorithm=None,maxSample=5000):
         self.__trainingInputs  = trainingInputs
         self.__trainingTargets = trainingTargets
         self.__clusters = clusters
         self.__initAlgorithm = initAlgorithm
         self.__maxSample = maxSample
+        self.__components = components
         self.train()
 
     @property 
@@ -46,14 +49,21 @@ class KMeansClassifier:
         return self.__clusters
 
     @property 
+    def components(self):
+        return self.__components
+
+    @property 
     def initAlgorithm(self):
         return self.__initAlgorithm
 
     @property 
-    def model(self):
-        return self.__model
-    
-    
+    def classifier(self):
+        return self.__classifier
+
+    @property 
+    def extractor(self):
+        return self.__extractor
+        
     @property 
     def maxSample(self):
         return self.__maxSample
@@ -61,10 +71,16 @@ class KMeansClassifier:
     @property 
     def trueLabelsMap(self):
         return self.__trueLabelsMap
-
+    
     @property 
     def trueLabelsProbabilityMap(self):
         return self.__trueLabelsProbabilityMap
+
+    @property 
+    def extractedTrainingInputs(self):
+        return self.__extractedTrainingInputs
+
+    
 
     def allPairDistances(self,A,B):
         tensorA = torch.tensor(np.array(A,dtype=float))
@@ -79,7 +95,7 @@ class KMeansClassifier:
     def minGrouping(self):
         k = self.clusters
         maxSample = self.maxSample
-        trainingInputs = self.trainingInputs
+        trainingInputs = self.extractedTrainingInputs
         n = trainingInputs.shape[0]
         if n > maxSample:
             trainingInputs = trainingInputs.sample(n=maxSample)      
@@ -137,7 +153,7 @@ class KMeansClassifier:
     def maxSeperation(self):
         k = self.clusters
         maxSample = self.maxSample
-        trainingInputs = copy.deepcopy(self.trainingInputs)
+        trainingInputs = copy.deepcopy(self.extractedTrainingInputs)
         n = trainingInputs.shape[0]
         if n > maxSample:
             trainingInputs = trainingInputs.sample(n=maxSample)
@@ -185,12 +201,14 @@ class KMeansClassifier:
             return (self.minGrouping(),1)      
 
     def train(self):
+        self.__extractor = NMF(n_components = self.components, init='random', random_state=0,max_iter = 1000,solver='mu')
+        self.__extractedTrainingInputs = self.extractor.fit_transform(self.trainingInputs)
         k = self.clusters
         initParams = self.findInitialCentroids()
-        self.__model = KMeans(n_clusters=k,init=initParams[0],n_init=initParams[1],max_iter=600,algorithm='full')
-        self.model.fit(self.trainingInputs)
-        labels = self.model.labels_
-        inertia = self.model.inertia_
+        self.__classifier = KMeans(n_clusters=k,init=initParams[0],n_init=initParams[1],max_iter=600,algorithm='auto')
+        self.classifier.fit(self.extractedTrainingInputs)
+        labels = self.classifier.labels_
+        inertia = self.classifier.inertia_
         trueLabelsMap = np.empty(k,dtype=int)
         trueLabelsMap.fill(-1)
         accuracy = np.zeros(k)
@@ -205,10 +223,10 @@ class KMeansClassifier:
             iLabel = statistics.mode(iTrueLabels)
             trueLabelsMap[i] = iLabel
             trueLabelsProbabilityMap[i,:] = [(iTrueLabels.count(j) / len(iTrueLabels))  for j in range(l)] 
-            
+
             accuracy[i] = len([j for j in iTrueLabels if j == iLabel])/len(iTrueLabels)
             #print("iLabel = %d iLabelProbabilities = %s iAccuracy = %0.3f" % (iLabel, str(trueLabelsProbabilityMap[i,:]),accuracy[i]))
-
+        
         self.__trueLabelsProbabilityMap = trueLabelsProbabilityMap
         self.__trueLabelsMap = trueLabelsMap
     
@@ -217,7 +235,7 @@ class KMeansClassifier:
         numpyInData = numpyInData.reshape(-1,len(numpyInData))
         labelsProbability = self.getLabelsProbability(numpyInData)
 
-        #clusterId = self.model.predict(numpyInData)
+        #clusterId = self.classifier.predict(numpyInData)
         #label = self.trueLabelsMap[clusterId]
 
         #labelChoices = range(labelProbability.shape[1]) 
@@ -226,7 +244,8 @@ class KMeansClassifier:
         return label
 
     def getLabelsProbability(self,inputs):
-        centroids = self.model.cluster_centers_
+        centroids = self.classifier.cluster_centers_
+        extractedInputs = self.extractor.transform(inputs)
         distances = self.allPairDistances(inputs,centroids)
         distancesInverse = np.reciprocal(np.array(distances))
         membershipsProbability = distancesInverse/distancesInverse.sum(axis=1)[:,None]
@@ -236,7 +255,7 @@ class KMeansClassifier:
     def classifyAll(self,inputs):
         labelsProbability = self.getLabelsProbability(inputs)
 
-        #clusterIds = self.model.predict(numpyInputs)
+        #clusterIds = self.classifier.predict(numpyInputs)
         #labels = self.trueLabelsMap[clusterIds]
 
         #labels = np.empty(labelsProbability.shape[0],dtype=int)
@@ -258,22 +277,22 @@ class KMeansClassifier:
         return accuracy
     
                
-def getAccuracy(trainInputs,trainTargets,k,initAlgorithm,testInputs,testTargets,tag,results=None):
-    model = KMeansClassifier(trainInputs,trainTargets,k,initAlgorithm)
-    testAccuracy = model.accuracy(testInputs,testTargets)
-    trainAccuracy = model.accuracy(trainInputs,trainTargets)
+def getAccuracy(trainInputs,trainTargets,k,initAlgorithm,nmfComponents,testInputs,testTargets,tag,results=None):
+    classifier = KMeansClassifierWithNMF(trainInputs,trainTargets,k,nmfComponents,initAlgorithm)
+    testAccuracy = classifier.accuracy(testInputs,testTargets)
+    trainAccuracy = classifier.accuracy(trainInputs,trainTargets)
     i = initAlgorithms.index(initAlgorithm)
     initAlgorithmName = initAlgorithmNames[i]
-    print("Tag = %s k=%d: %s Initialization Test Accuracy = %.3f, Train Accuracy = %.3f" % (tag,k,initAlgorithmName,testAccuracy,trainAccuracy))   
+    print("Tag = %s, k = %d, Initialization = %s, NMF components = %d:  Test Accuracy = %.3f, Train Accuracy = %.3f" % (tag,k,initAlgorithmName,nmfComponents,testAccuracy,trainAccuracy))   
     
     if results is None:
         result = dict()
-        result['TrainAccuracy'] = trainAccuracy
-        result['TestAccuracy'] = testAccuracy 
-        return result
+        result['TrainAccuracy'] = trainAccuracy 
+        return testAccuracy
     else:
-        results[tag]['TrainAccuracy'][initAlgorithm][k] = trainAccuracy
-        results[tag]['TestAccuracy'][initAlgorithm][k] = testAccuracy
+        results[tag]['TrainAccuracy'][nmfComponents][k] = trainAccuracy
+        results[tag]['TestAccuracy'][nmfComponents][k] = testAccuracy
+
 
 if __name__ == '__main__':
 
@@ -308,6 +327,12 @@ if __name__ == '__main__':
     kMin = 7
     kMax = 14
     kStep = 7
+    nmfMin = 7
+    nmfMax = 49
+    nmfStep = 7
+
+    nmfComponentList = range(nmfMin,nmfMax+1,nmfStep)
+    plotColors = ['b','r','g','k','c','m','y']
     for k in range(kMin,kMax+1,kStep):
         print("===================================Start(k=%d)=================================" % k)
         for tag in tags:
@@ -315,41 +340,40 @@ if __name__ == '__main__':
                 tagDict = manager.dict()
                 trainingDict = manager.dict() 
                 testDict = manager.dict() 
-                for initAlgorithm in initAlgorithms:
-                    initAlgoTrainingDict = manager.dict() 
-                    initAlgoTestDict = manager.dict()
-                    trainingDict[initAlgorithm] = initAlgoTrainingDict
-                    testDict[initAlgorithm] = initAlgoTestDict
+                for nmfComponents in range(nmfMin,nmfMax+1,nmfStep):
+                    nmfTrainingDict = manager.dict() 
+                    nmfTestDict = manager.dict()
+                    trainingDict[nmfComponents] = nmfTrainingDict
+                    testDict[nmfComponents] = nmfTestDict
                 tagDict['TrainAccuracy'] = trainingDict
                 tagDict['TestAccuracy'] = testDict
                 returnDict[tag] = tagDict
 
             if tag not in jobs:
                 tagDict = dict()
-                for initAlgorithm in initAlgorithms:
-                    tagDict[initAlgorithm] = dict()
+                for nmfComponents in range(nmfMin,nmfMax+1,nmfStep):
+                    tagDict[nmfComponents] = dict()
                 jobs[tag] = tagDict
         for tag in tags:
-            for initAlgorithm in initAlgorithms:
-                jobs[tag][initAlgorithm][k] = multiprocessing.Process(target=getAccuracy, args=(inputs_train[tag],targets_train[tag],k,initAlgorithm,inputs_test[tag],targets_test[tag],tag,returnDict))
-                jobs[tag][initAlgorithm][k].start()
+            for nmfComponents in range(nmfMin,nmfMax+1,nmfStep):
+                jobs[tag][nmfComponents][k] = multiprocessing.Process(target=getAccuracy, args=(inputs_train[tag],targets_train[tag],k,InitAlgorithm.KPLUS,nmfComponents,inputs_test[tag],targets_test[tag],tag,returnDict))
+                jobs[tag][nmfComponents][k].start()
         for tag in tags:
-            for initAlgorithm in initAlgorithms:
-                jobs[tag][initAlgorithm][k].join()
+            for nmfComponents in range(nmfMin,nmfMax+1,nmfStep):
+                jobs[tag][nmfComponents][k].join()
         print("===================================End(k=%d)=================================" % k)
 
     for tag in tags:
         for dTag in ['TrainAccuracy','TestAccuracy']:
             x = range(kMin,kMax+1,kStep)
             y = dict()
-            for initAlgorithm in initAlgorithms:
-                i = initAlgorithms.index(initAlgorithm)
-                initAlgorithmName = initAlgorithmNames[i]
+            for nmfComponents in range(nmfMin,nmfMax+1,nmfStep):
+                yLabel = "NMF extracted components = " + str(nmfComponents)
+                y[yLabel] = returnDict[tag][dTag][nmfComponents].values()
 
-                data = returnDict[tag][dTag][initAlgorithm]
-                y[initAlgorithmName] = data.values()
+                i = nmfComponentList.index(nmfComponents) % len(plotColors)
 
-                plt.plot(x,y[initAlgorithmName],plotColors[i],label = initAlgorithmName + " Initialization" )
+                plt.plot(x,y[yLabel],plotColors[i],label = yLabel )
 
             plt.legend(loc='lower right')
             plt.xlabel('Number of Clusters')
